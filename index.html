@@ -37,14 +37,12 @@
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
         .interactive { pointer-events: auto; }
         
-        /* Layout Transitions */
         .control-group { position: absolute; display: flex; gap: 10px; padding: 10px; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .side-view-ui .left-controls { bottom: 15px; left: 50px; }
         .side-view-ui .right-controls { bottom: 15px; right: 50px; flex-direction: column; align-items: flex-end; }
         .front-view-ui .left-controls { left: 10px; bottom: 15px; }
         .front-view-ui .right-controls { right: 10px; bottom: 15px; flex-direction: column; align-items: flex-end; }
 
-        /* Compact Controls */
         .btn-action {
             width: 54px; height: 54px;
             background: rgba(255, 255, 255, 0.2);
@@ -67,8 +65,11 @@
             backdrop-filter: blur(8px); pointer-events: auto;
             transition: all 0.2s; margin-top: 8px;
         }
-        .hud-icon-btn:active { transform: rotate(90deg) scale(0.9); }
+        .hud-icon-btn:active { transform: scale(0.9); }
+        .btn-quit:active { background: rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 0.8); }
+        
         svg { width: 24px; height: 24px; fill: currentColor; }
+        .hud-icon-btn svg { fill: none !important; }
     </style>
 </head>
 <body class="front-view-ui">
@@ -76,19 +77,26 @@
     <div id="game-container"></div>
 
     <div id="ui-layer">
-        <!-- HUD -->
         <div class="w-full flex justify-between items-start p-4 md:p-6">
             <div class="flex flex-col items-start">
                 <div class="bg-black/70 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20">
                     <p class="text-[8px] uppercase tracking-widest opacity-60 text-white font-bold">Score</p>
                     <p id="score" class="text-2xl font-black font-mono text-emerald-400 leading-none">00000</p>
                 </div>
-                <button id="view-toggle" class="hud-icon-btn shadow-lg" title="Switch Perspective">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
-                        <polyline points="21 3 21 8 16 8"/>
-                    </svg>
-                </button>
+                <div class="flex flex-col gap-1">
+                    <button id="view-toggle" class="hud-icon-btn shadow-lg" title="Switch Perspective">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                            <polyline points="21 3 21 8 16 8"/>
+                        </svg>
+                    </button>
+                    <button id="quit-game" class="hud-icon-btn btn-quit shadow-lg hidden" title="Quit Expedition">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="bg-black/70 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 text-right">
                 <p class="text-[8px] uppercase tracking-widest opacity-60 text-white font-bold">Best</p>
@@ -96,14 +104,13 @@
             </div>
         </div>
 
-        <!-- Screens -->
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div id="start-screen" class="interactive flex flex-col items-center gap-6 bg-zinc-800/95 backdrop-blur-3xl p-10 rounded-[40px] border border-white/20 shadow-2xl text-center mx-4">
                 <h1 class="text-5xl font-black italic tracking-tighter text-white">T-REX RUN</h1>
                 <button id="start-btn" class="px-12 py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-lg rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95">
                     START RUN
                 </button>
-                <p class="text-white/40 text-[9px] uppercase tracking-widest">Offline Enabled • Multi-View</p>
+                <p class="text-white/40 text-[9px] uppercase tracking-widest">Enhanced Dinosaur Details • Offline Enabled</p>
             </div>
 
             <div id="game-over-screen" class="hidden interactive flex flex-col items-center gap-6 bg-zinc-900/95 backdrop-blur-3xl p-12 rounded-[40px] border border-red-500/30 shadow-2xl text-center">
@@ -115,7 +122,6 @@
             </div>
         </div>
 
-        <!-- Controls -->
         <div id="mobile-controls" class="interactive">
             <div class="control-group left-controls">
                 <button id="btn-left" class="btn-action"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
@@ -129,13 +135,11 @@
     </div>
 
     <script>
-        // Service Worker logic for Offline
         if ('serviceWorker' in navigator) {
             const swCode = `const C='d-v2';const A=['/','index.html','https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','https://cdn.tailwindcss.com'];self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
             navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], {type:'application/javascript'}))).catch(()=>{});
         }
 
-        // --- AUDIO ENGINE ---
         const Sound = {
             ctx: null, musicSeq: [392,392,0,392,0,329,392,0,523,0,392,0,329,0,349,440,493,466,440,392,329,392,440,349,392,329,261,293,246],
             musicIndex: 0, nextNoteTime: 0, isPlaying: false,
@@ -148,9 +152,8 @@
             tick() { if (!this.isPlaying) return; while (this.nextNoteTime < this.ctx.currentTime + 0.1) { const tempo = 0.15 / (gameSpeed * 1.8); const f = this.musicSeq[this.musicIndex]; if (f > 0) { const o = this.ctx.createOscillator(), g = this.ctx.createGain(); o.type = 'square'; o.frequency.setValueAtTime(f, this.nextNoteTime); g.gain.setValueAtTime(0.02, this.nextNoteTime); g.gain.exponentialRampToValueAtTime(0.001, this.nextNoteTime + tempo * 0.8); o.connect(g); g.connect(this.ctx.destination); o.start(this.nextNoteTime); o.stop(this.nextNoteTime + tempo); } this.nextNoteTime += tempo; this.musicIndex = (this.musicIndex + 1) % this.musicSeq.length; } setTimeout(() => this.tick(), 25); }
         };
 
-        // --- GAME ENGINE ---
         let scene, camera, renderer, clock;
-        let dino, legs = [], tail, obstacles = [];
+        let dino, legs = [], tail, tongue, obstacles = [];
         let isJumping = false, isDucking = false, velocityY = 0;
         let targetLane = 0, currentLane = 0;
         
@@ -163,6 +166,9 @@
             trex: new THREE.MeshStandardMaterial({ color: 0x6b8e23, roughness: 0.5 }),
             trexDark: new THREE.MeshStandardMaterial({ color: 0x4a5d23, roughness: 0.6 }),
             ground: new THREE.MeshStandardMaterial({ color: 0x333338, roughness: 1 }),
+            eyeWhite: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+            eyePupil: new THREE.MeshBasicMaterial({ color: 0x000000 }),
+            tongue: new THREE.MeshStandardMaterial({ color: 0xcc4444 })
         };
 
         function init() {
@@ -188,7 +194,8 @@
                 camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
             });
 
-            document.getElementById('view-toggle').onclick = (e) => { e.preventDefault(); e.stopPropagation(); togglePerspective(); };
+            document.getElementById('view-toggle').onclick = (e) => { e.preventDefault(); e.stopPropagation(); togglePerspective(); e.target.blur(); };
+            document.getElementById('quit-game').onclick = (e) => { e.preventDefault(); e.stopPropagation(); quitGame(); e.target.blur(); };
             
             const setupInput = (id, start, end) => {
                 const el = document.getElementById(id);
@@ -200,16 +207,30 @@
             };
             setupInput('btn-left', () => targetLane = -laneWidth, () => targetLane = 0);
             setupInput('btn-right', () => targetLane = laneWidth, () => targetLane = 0);
-            setupInput('btn-jump', () => { if (gameActive && !isJumping) { Sound.jump(); isJumping = true; velocityY = jumpForce; } });
+            setupInput('btn-jump', () => handleJumpAction());
             setupInput('btn-duck', () => { if (gameActive) { if(!isDucking) Sound.duck(); isDucking = true; if(isJumping) velocityY -= 0.15; } }, () => isDucking = false);
 
-            document.getElementById('start-btn').onclick = startGame;
-            document.getElementById('restart-btn').onclick = startGame;
+            window.addEventListener('keydown', (e) => {
+                if (!gameActive) return;
+                if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); handleJumpAction(); }
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') targetLane = -laneWidth;
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') targetLane = laneWidth;
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); if(!isDucking) Sound.duck(); isDucking = true; if(isJumping) velocityY -= 0.15; }
+            });
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') isDucking = false;
+                if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'KeyA' || e.code === 'KeyD') targetLane = 0;
+            });
+
+            document.getElementById('start-btn').onclick = function(e) { this.blur(); startGame(); };
+            document.getElementById('restart-btn').onclick = function(e) { this.blur(); startGame(); };
             document.getElementById('high-score').innerText = highScore.toString().padStart(5, '0');
             
             clock = new THREE.Clock();
             requestAnimationFrame(animate);
         }
+
+        function handleJumpAction() { if (gameActive && !isJumping) { Sound.jump(); isJumping = true; velocityY = jumpForce; } }
 
         function togglePerspective() {
             isSideView = !isSideView;
@@ -236,48 +257,103 @@
 
         function createTREX() {
             dino = new THREE.Group();
-            const box = (w, h, d, c, x, y, z, rx=0) => {
-                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), c);
+            const box = (w, h, d, mat, x, y, z, rx=0) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
                 m.position.set(x, y, z); m.rotation.x = rx; m.castShadow = true; dino.add(m); return m;
             };
-            box(0.9, 1.1, 1, MATERIALS.trex, 0, 1.2, 0); // Belly
-            box(0.85, 0.9, 1.2, MATERIALS.trex, 0, 1.5, -0.4, -0.15); // Back
-            box(0.5, 1, 0.5, MATERIALS.trex, 0, 2.3, 0.4, 0.5); // Neck
+            box(0.9, 1.1, 1, MATERIALS.trex, 0, 1.2, 0);
+            box(0.85, 0.9, 1.2, MATERIALS.trex, 0, 1.5, -0.4, -0.15);
+            box(0.5, 1, 0.5, MATERIALS.trex, 0, 2.3, 0.4, 0.5);
             const head = new THREE.Group(); head.position.set(0, 2.8, 0.9);
-            const sk = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.7,0.7), MATERIALS.trex); head.add(sk);
-            const sn = new THREE.Mesh(new THREE.BoxGeometry(0.65,0.5,0.9), MATERIALS.trex); sn.position.set(0,-0.1,0.6); head.add(sn);
+            const sk = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.75, 0.8), MATERIALS.trex); head.add(sk);
+            const sn = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.9), MATERIALS.trex); sn.position.set(0, 0.15, 0.65); head.add(sn);
+            const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.25, 0.8), MATERIALS.trexDark); jaw.position.set(0, -0.2, 0.6); head.add(jaw);
+            const createEye = (side) => {
+                const eyeG = new THREE.Group();
+                const sclera = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.1), MATERIALS.eyeWhite);
+                const pupil = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.05), MATERIALS.eyePupil);
+                pupil.position.z = 0.05; eyeG.add(sclera, pupil);
+                eyeG.position.set(0.38 * side, 0.2, 0.3); eyeG.rotation.y = side * 0.3;
+                return eyeG;
+            };
+            head.add(createEye(1), createEye(-1));
+            tongue = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.5), MATERIALS.tongue);
+            tongue.position.set(0, -0.05, 0.5); head.add(tongue);
             dino.add(head);
             tail = new THREE.Group(); tail.position.y = 1.3;
-            const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.7,1.2), MATERIALS.trex); t1.position.z = -1; tail.add(t1);
-            const t2 = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,1.5), MATERIALS.trexDark); t2.position.z = -2.1; t2.rotation.x = 0.1; tail.add(t2);
+            const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 1.2), MATERIALS.trex); t1.position.z = -1; tail.add(t1);
+            const t2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 1.5), MATERIALS.trexDark); t2.position.z = -2.1; t2.rotation.x = 0.1; tail.add(t2);
             dino.add(tail);
-            const leg = (s) => {
-                const g = new THREE.Group(); g.position.set(0.4*s, 0.8, 0);
-                const th = new THREE.Mesh(new THREE.BoxGeometry(0.45,1,0.5), MATERIALS.trexDark); th.position.y = 0.5; g.add(th);
-                const cf = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.8,0.3), MATERIALS.trexDark); cf.position.set(0,-0.3,0.1); cf.rotation.x = 0.2; g.add(cf);
+            const createLeg = (s) => {
+                const g = new THREE.Group(); g.position.set(0.4 * s, 0.8, 0);
+                const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1, 0.5), MATERIALS.trexDark); thigh.position.y = 0.5; g.add(thigh);
+                const cf = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, 0.3), MATERIALS.trexDark); cf.position.set(0, -0.3, 0.1); cf.rotation.x = 0.2; g.add(cf);
                 dino.add(g); return g;
             };
-            legs = [leg(1), leg(-1)]; scene.add(dino);
+            legs = [createLeg(1), createLeg(-1)]; scene.add(dino);
         }
 
         function createObstacle(type) {
             const g = new THREE.Group(); let hH = 1.0, isD = false;
-            const part = (w, h, d, c, x=0, y=0, z=0) => {
-                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: c }));
-                m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+            const part = (w, h, d, c, x=0, y=0, z=0, rx=0, ry=0, rz=0) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 }));
+                m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; g.add(m); return m;
             };
-            const c = [0x556b2f, 0x808080, 0x8b4513, 0xff0000, 0x2f4f4f, 0xdaa520, 0x8b0000, 0x2e8b57, 0xd2691e, 0x006400, 0x662222, 0x444444, 0x333333];
+            const colors = [0x556b2f, 0x808080, 0x8b4513, 0xff0000, 0x2f4f4f, 0xdaa520, 0x8b0000, 0x2e8b57, 0xd2691e, 0x006400, 0x662222, 0x444444, 0x333333];
+            
             switch(type) {
-                case 0: part(1,1,2.2,c[0],0,0.5); hH=1.6; break;
-                case 1: part(1.4,1.4,3,c[1],0,0.7); part(0.7,4.5,0.7,c[1],0,3,1.2); hH=4.5; break;
-                case 2: part(1.2,1.1,2,c[2],0,0.5); part(1.5,1.5,0.3,c[2],0,1.4,1); hH=1.8; break;
-                case 3: part(2.5,0.1,0.6,c[3],0,2.3); hH=0.6; isD=true; break; // Ptero
-                case 4: part(1.6,0.8,2.2,c[4],0,0.4); hH=0.9; break;
-                case 5: part(0.8,1.4,1.2,c[5],0,0.7); hH=2.4; break;
-                case 10: part(5.0,0.1,1.0,c[10],0,2.1); hH=0.8; isD=true; break; // Quetzal
-                case 11: part(4,0.8,1,c[11],0,2.8); part(0.5,3,0.5,c[11],-1.5,1.5); part(0.5,3,0.5,c[11],1.5,1.5); hH=3.5; isD=true; break;
-                case 12: part(4,1.2,1.5,c[12],0,2.5); hH=3.0; isD=true; break; // Cloud
-                default: part(1,1,1.5,c[0],0,0.5); hH=1.2; break;
+                case 0: // Stegosaurus
+                    part(1.2, 1, 2.2, 0x3d4422, 0, 0.6); // Body
+                    for(let i=0; i<5; i++) part(0.1, 0.7, 0.5, 0x8b4513, (i%2?0.2:-0.2), 1.2, -0.8+i*0.45, 0.4); // Plates
+                    part(0.5, 0.4, 1.2, 0x3d4422, 0, 0.6, 1.5); // Head
+                    hH=1.6; break;
+                case 1: // Brachiosaurus
+                    part(1.5, 1.5, 3.2, 0x555555, 0, 0.8); // Body
+                    part(0.6, 4.2, 0.6, 0x555555, 0, 3, 1.2, -0.2); // Neck
+                    part(0.6, 0.4, 0.8, 0x555555, 0, 5, 1.6); // Head
+                    hH=4.5; break;
+                case 2: // Triceratops
+                    part(1.3, 1.1, 2.4, 0x4a3728, 0, 0.6); // Body
+                    part(1.6, 1.4, 0.3, 0x4a3728, 0, 1.4, 1.2, 0.6); // Frill
+                    part(0.1, 0.8, 0.1, 0xeeeeee, 0.4, 1.3, 1.5, 0.5); // Horn R
+                    part(0.1, 0.8, 0.1, 0xeeeeee, -0.4, 1.3, 1.5, 0.5); // Horn L
+                    hH=1.8; break;
+                case 3: // Pterodactyl (Small)
+                    part(0.8, 0.3, 0.8, 0xaa2222, 0, 2.3); // Body
+                    part(2.5, 0.1, 0.6, 0xaa2222, 0, 2.3, 0); // Wings
+                    part(0.2, 0.4, 1.0, 0xaa2222, 0, 2.6, 0.5); // Beak
+                    hH=0.6; isD=true; break;
+                case 4: // Ankylosaurus
+                    part(1.6, 0.8, 2.2, 0x222222, 0, 0.4); // Body
+                    part(0.5, 0.5, 1.5, 0x222222, 0, 0.4, -1.5); // Tail
+                    part(0.8, 0.7, 0.8, 0x111111, 0, 0.4, -2.4); // Club
+                    hH=1.0; break;
+                case 5: // Velociraptor
+                    part(0.6, 0.9, 1.5, 0x1a3a1a, 0, 0.6); // Body
+                    part(0.3, 1.2, 0.3, 0x1a3a1a, 0, 1.4, 0.6, 0.4); // Neck
+                    part(0.4, 0.3, 0.8, 0x1a3a1a, 0, 1.8, 1.0); // Head
+                    hH=2.0; break;
+                case 6: // Spinosaurus
+                    part(1, 1.3, 2.5, 0x3d2b1f, 0, 0.7); // Body
+                    part(0.1, 1.5, 1.8, 0xaa3333, 0, 1.8, 0); // Sail
+                    part(0.4, 0.4, 1.2, 0x3d2b1f, 0, 1.8, 1.2); // Head
+                    hH=3.0; break;
+                case 10: // Quetzalcoatlus (Large Flying)
+                    part(1.2, 0.5, 1.5, 0x662222, 0, 2.1); // Body
+                    part(5.0, 0.1, 1.0, 0x662222, 0, 2.1, 0); // Huge Wings
+                    part(0.3, 0.4, 1.8, 0x662222, 0, 2.4, 0.8); // Head/Crest
+                    hH = 0.8; isD = true; break;
+                case 11: // Rock Arch
+                    part(4, 0.8, 1, 0x444444, 0, 2.8);
+                    part(0.5, 3, 0.5, 0x444444, -1.8, 1.5);
+                    part(0.5, 3, 0.5, 0x444444, 1.8, 1.5);
+                    hH=3.5; isD=true; break;
+                case 12: // Ash Cloud
+                    const m = new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.3, 1.5), new THREE.MeshStandardMaterial({ color: 0x333333, transparent: true, opacity: 0.8 }));
+                    m.position.y = 2.6; g.add(m);
+                    hH=3.0; isD=true; break;
+                default: 
+                    part(1, 1, 1.5, 0x556b2f, 0, 0.5); hH=1.2; break;
             }
             g.userData = { hH, isD }; return g;
         }
@@ -285,33 +361,43 @@
         function startGame() {
             Sound.init(); Sound.startMusic(); gameActive = true; score = 0; gameSpeed = baseSpeed; targetLane = 0; currentLane = 0;
             obstacles.forEach(o => scene.remove(o)); obstacles = [];
-            document.getElementById('start-screen').classList.add('hidden'); document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('quit-game').classList.remove('hidden');
+        }
+
+        function quitGame() {
+            Sound.stopMusic(); gameActive = false;
+            obstacles.forEach(o => scene.remove(o)); obstacles = [];
+            document.getElementById('start-screen').classList.remove('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('quit-game').classList.add('hidden');
         }
 
         function gameOver() {
             Sound.crash(); gameActive = false;
             if (score > highScore) { highScore = score; localStorage.setItem('dino_pwa_v2', highScore); document.getElementById('high-score').innerText = highScore.toString().padStart(5, '0'); }
-            document.getElementById('final-score').innerText = score.toString().padStart(5, '0'); document.getElementById('game-over-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score.toString().padStart(5, '0');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            document.getElementById('quit-game').classList.add('hidden');
         }
 
-        let stepT = false;
         function animate() {
             requestAnimationFrame(animate); const delta = clock.getDelta();
             currentLane = THREE.MathUtils.lerp(currentLane, targetLane, 0.18);
-            
             if (isSideView) { dino.position.x = -10; dino.position.z = currentLane; dino.rotation.y = Math.PI / 2; camera.lookAt(0, 2.5, 0); }
             else { dino.position.x = currentLane; dino.position.z = 4; dino.rotation.y = 0; camera.lookAt(0, 2.5, 0); }
-
             if (gameActive) {
                 const targetS = isDucking ? 0.35 : 1.0; dino.scale.y = THREE.MathUtils.lerp(dino.scale.y, targetS, 0.2);
+                const t = Date.now() * 0.015;
+                if (tongue) { tongue.rotation.y = Math.sin(t * 1.5) * 0.4; tongue.scale.x = 1 + Math.sin(t * 0.5) * 0.1; }
                 if (isJumping) {
                     dino.position.y += velocityY; velocityY += gravity; if (dino.position.y <= 0) { dino.position.y = 0; isJumping = false; velocityY = 0; }
                     legs.forEach(l => l.rotation.x = -0.4);
                 } else {
-                    const t = Date.now() * 0.015, lr = Math.sin(t) * 0.7; legs[0].rotation.x = lr; legs[1].rotation.x = Math.sin(t+Math.PI)*0.7; tail.rotation.y = Math.sin(t*0.4)*0.2;
+                    const lr = Math.sin(t) * 0.7; legs[0].rotation.x = lr; legs[1].rotation.x = Math.sin(t+Math.PI)*0.7; tail.rotation.y = Math.sin(t*0.4)*0.2;
                     if (lr > 0.6 && !stepT) { Sound.step(); stepT = true; } else if (lr < 0) { stepT = false; }
                 }
-
                 obstacleTimer -= delta;
                 if (obstacleTimer <= 0) {
                     const o = createObstacle(Math.floor(Math.random()*13));
@@ -321,22 +407,15 @@
                     scene.add(o); obstacles.push(o);
                     obstacleTimer = 1.0 / (gameSpeed * 0.8 + Math.random() * 0.4);
                 }
-
                 for (let i = obstacles.length - 1; i >= 0; i--) {
                     const o = obstacles[i];
                     if (isSideView) o.position.x -= gameSpeed; else o.position.z += gameSpeed;
-                    
-                    const dx = Math.abs(dino.position.x - o.position.x);
-                    const dz = Math.abs(dino.position.z - o.position.z);
-                    const dTop = dino.position.y + (isDucking ? 1.0 : 2.8);
-                    const oBot = o.position.y;
-                    const oTop = o.position.y + o.userData.hH;
-
+                    const dx = Math.abs(dino.position.x - o.position.x), dz = Math.abs(dino.position.z - o.position.z);
+                    const dTop = dino.position.y + (isDucking ? 1.0 : 2.8), oBot = o.position.y, oTop = o.position.y + o.userData.hH;
                     if (dx < 1.2 && dz < 1.2) {
                         if (o.userData.isD) { if (dTop > oBot && dino.position.y < oTop) gameOver(); }
                         else { if (!(dTop < oBot || dino.position.y > oTop)) gameOver(); }
                     }
-
                     const off = isSideView ? (o.position.x < -25) : (o.position.z > 25);
                     if (off) { scene.remove(o); obstacles.splice(i, 1); }
                 }
@@ -346,6 +425,7 @@
             }
             renderer.render(scene, camera);
         }
+        let stepT = false;
         window.onload = init;
     </script>
 </body>
