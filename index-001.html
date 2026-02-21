@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#222225">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>3D T-Rex Runner</title>
+    
+    <script>
+        const manifest = {
+            "name": "3D T-Rex Runner Pro",
+            "short_name": "T-Rex3D",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#222225",
+            "theme_color": "#222225",
+            "icons": [{
+                "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzIyMjIyNSIvPjxwYXRoIGQ9Ik0zODAgMTIwaC02MHYyMGgtMjB2MjBoLTIwdjIwaC0yMHYyMGgtMjB2NDBoMjB2MjBoNjB2MjBoNDB2MjBoMjB2LTQwSDE2MHYtMjBoMjB2LTIwaDIwdi0yMGgyMHYtMjBoNDB2LTIwaDIwdi0yMGgyMHYtMjBoMjB2LTQwek0xNjAgMzQwaDQwdjIwSDE2MHYtMjB6IiBmaWxsPSIjNjg4ZTIzIi8+PC9zdmc+",
+                "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable"
+            }]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const link = document.createElement('link');
+        link.rel = 'manifest'; link.href = URL.createObjectURL(blob);
+        document.head.appendChild(link);
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #222225; touch-action: none; -webkit-user-select: none; user-select: none; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        .interactive { pointer-events: auto; }
+        
+        .control-group { position: absolute; display: flex; gap: 12px; padding: 10px; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .side-view-ui .left-controls { bottom: 15px; left: 55px; }
+        .side-view-ui .right-controls { bottom: 15px; right: 55px; flex-direction: column; align-items: flex-end; }
+        .front-view-ui .left-controls { left: 10px; bottom: 20px; }
+        .front-view-ui .right-controls { right: 10px; bottom: 20px; flex-direction: column; align-items: flex-end; }
+
+        .btn-action {
+            width: 58px; height: 58px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; transition: all 0.1s ease;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+        .btn-action:active { background: rgba(16, 185, 129, 0.6); transform: scale(0.9); }
+        .btn-jump { width: 68px; height: 68px; border-radius: 22px; }
+        .btn-duck { width: 68px; height: 42px; border-radius: 12px; }
+        
+        .hud-icon-btn {
+            width: 48px; height: 48px;
+            background: rgba(0, 0, 0, 0.65);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px); pointer-events: auto;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); margin-top: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+        .hud-icon-btn svg { fill: none !important; width: 28px; height: 28px; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        .btn-quit:active { background: rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 0.8); }
+    </style>
+</head>
+<body class="front-view-ui">
+
+    <div id="game-container"></div>
+
+    <div id="ui-layer">
+        <div class="w-full flex justify-between items-start p-4 md:p-8">
+            <div class="flex flex-col items-start">
+                <div class="bg-black/70 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-white/20 shadow-2xl">
+                    <p class="text-[9px] uppercase tracking-[0.2em] opacity-60 text-white font-bold mb-0.5">Score</p>
+                    <p id="score" class="text-3xl font-black font-mono text-emerald-400 leading-none">00000</p>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <button id="view-toggle" class="hud-icon-btn" title="Switch Perspective">
+                        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+                    </button>
+                    <button id="quit-game" class="hud-icon-btn btn-quit hidden" title="Quit Expedition">
+                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="bg-black/70 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-white/20 text-right shadow-2xl">
+                <p class="text-[9px] uppercase tracking-[0.2em] opacity-60 text-white font-bold mb-0.5">Best</p>
+                <p id="high-score" class="text-xl font-bold font-mono text-white leading-none">00000</p>
+            </div>
+        </div>
+
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div id="start-screen" class="interactive flex flex-col items-center gap-6 bg-zinc-800/95 backdrop-blur-3xl p-12 rounded-[48px] border border-white/20 shadow-2xl text-center mx-4">
+                <h1 class="text-5xl font-black italic tracking-tighter text-white">T-REX RUN</h1>
+                <p class="text-emerald-400 font-bold text-[10px] tracking-[0.4em] uppercase">3s Impact Sequence Active</p>
+                <button id="start-btn" class="px-14 py-5 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xl rounded-2xl transition-all shadow-xl hover:scale-105">START RUN</button>
+            </div>
+
+            <div id="game-over-screen" class="hidden interactive flex flex-col items-center gap-8 bg-zinc-900/95 backdrop-blur-3xl p-14 rounded-[48px] border border-red-500/30 shadow-2xl text-center">
+                <h2 class="text-4xl font-black text-red-500 italic uppercase">Extinct</h2>
+                <p id="final-score" class="text-6xl font-mono font-black text-white">00000</p>
+                <button id="restart-btn" class="px-14 py-5 bg-white text-black font-black text-lg rounded-2xl transition-all">TRY AGAIN</button>
+            </div>
+        </div>
+
+        <div id="mobile-controls" class="interactive">
+            <div class="control-group left-controls">
+                <button id="btn-left" class="btn-action"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+                <button id="btn-right" class="btn-action"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+            </div>
+            <div class="control-group right-controls">
+                <button id="btn-jump" class="btn-action btn-jump"><svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg></button>
+                <button id="btn-duck" class="btn-action btn-duck"><svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            const swCode = `const C='d-v8';const A=['/','index.html','https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','https://cdn.tailwindcss.com'];self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+            navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], {type:'application/javascript'}))).catch(()=>{});
+        }
+
+        const Sound = {
+            ctx: null, musicSeq: [392,392,0,392,0,329,392,0,523,0,392,0,329,0,349,440,493,466,440,392,329,392,440,349,392,329,261,293,246],
+            musicIndex: 0, nextNoteTime: 0, isPlaying: false,
+            init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (this.ctx.state === 'suspended') this.ctx.resume(); },
+            play(f, t, d, v, s = 0) { if (!this.ctx) return; const o = this.ctx.createOscillator(), g = this.ctx.createGain(); o.type = t; o.frequency.setValueAtTime(f, this.ctx.currentTime); if (s) o.frequency.exponentialRampToValueAtTime(s, this.ctx.currentTime + d); g.gain.setValueAtTime(v, this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + d); o.connect(g); g.connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime + d); },
+            jump() { this.play(150, 'square', 0.2, 0.08, 400); }, duck() { this.play(300, 'sine', 0.15, 0.08, 50); }, step() { this.play(60, 'triangle', 0.05, 0.04); },
+            crash() { this.stopMusic(); this.play(100, 'sawtooth', 0.8, 0.4, 10); },
+            startMusic() { this.isPlaying = true; this.nextNoteTime = this.ctx.currentTime; this.tick(); },
+            stopMusic() { this.isPlaying = false; },
+            tick() { if (!this.isPlaying) return; while (this.nextNoteTime < this.ctx.currentTime + 0.1) { const tempo = 0.15 / (gameSpeed * 1.8); const f = this.musicSeq[this.musicIndex]; if (f > 0) { const o = this.ctx.createOscillator(), g = this.ctx.createGain(); o.type = 'square'; o.frequency.setValueAtTime(f, this.nextNoteTime); g.gain.setValueAtTime(0.02, this.nextNoteTime); g.gain.exponentialRampToValueAtTime(0.001, this.nextNoteTime + tempo * 0.8); o.connect(g); g.connect(this.ctx.destination); o.start(this.nextNoteTime); o.stop(this.nextNoteTime + tempo); } this.nextNoteTime += tempo; this.musicIndex = (this.musicIndex + 1) % this.musicSeq.length; } setTimeout(() => this.tick(), 25); }
+        };
+
+        let scene, camera, renderer, clock;
+        let dino, legs = [], tail, tongue, obstacles = [];
+        let isJumping = false, isDucking = false, velocityY = 0;
+        let targetLane = 0, currentLane = 0;
+        
+        const gravity = -0.016, jumpForce = 0.38, laneWidth = 2.6;
+        let baseSpeed = 0.42, gameSpeed = baseSpeed, obstacleTimer = 0;
+        let isSideView = false, gameActive = false, score = 0;
+        let highScore = localStorage.getItem('dino_pwa_v7') || 0;
+
+        // Ragdoll Physics State
+        let isImpacting = false;
+        let impactTimer = 0;
+        let impactDinoVel = new THREE.Vector3();
+        let impactObsVel = new THREE.Vector3();
+        let impactDinoRotVel = new THREE.Vector3();
+        let impactObsRotVel = new THREE.Vector3();
+        let currentImpactingObs = null;
+
+        const MATERIALS = {
+            trex: new THREE.MeshStandardMaterial({ color: 0x6b8e23, roughness: 0.5 }),
+            trexDark: new THREE.MeshStandardMaterial({ color: 0x4a5d23, roughness: 0.6 }),
+            ground: new THREE.MeshStandardMaterial({ color: 0x333338, roughness: 1 }),
+            eyeWhite: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+            eyePupil: new THREE.MeshBasicMaterial({ color: 0x000000 }),
+            tongue: new THREE.MeshStandardMaterial({ color: 0xcc4444 })
+        };
+
+        function init() {
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x222225); scene.fog = new THREE.Fog(0x222225, 10, 110);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true; renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.8));
+            const sun = new THREE.DirectionalLight(0xffffff, 2.5); sun.position.set(30, 60, 30); sun.castShadow = true; scene.add(sun);
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), MATERIALS.ground);
+            ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+            scene.add(new THREE.GridHelper(3000, 300, 0x777777, 0x444444));
+
+            createTREX();
+            isSideView = window.innerWidth > window.innerHeight;
+            applyView();
+
+            window.addEventListener('resize', () => {
+                const w = window.innerWidth, h = window.innerHeight;
+                if ((w > h) !== isSideView) togglePerspective();
+                camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
+            });
+
+            document.getElementById('view-toggle').onclick = (e) => { e.preventDefault(); if(!isImpacting) togglePerspective(); e.target.blur(); };
+            document.getElementById('quit-game').onclick = (e) => { e.preventDefault(); quitGame(); e.target.blur(); };
+            
+            const setupInput = (id, start, end) => {
+                const el = document.getElementById(id);
+                el.addEventListener('pointerdown', e => { e.preventDefault(); start(); });
+                if (end) {
+                    el.addEventListener('pointerup', e => { e.preventDefault(); end(); });
+                    el.addEventListener('pointerleave', e => { end(); });
+                }
+            };
+            setupInput('btn-left', () => targetLane = -laneWidth, () => targetLane = 0);
+            setupInput('btn-right', () => targetLane = laneWidth, () => targetLane = 0);
+            setupInput('btn-jump', () => handleJumpAction());
+            setupInput('btn-duck', () => { if (gameActive && !isImpacting) { if(!isDucking) Sound.duck(); isDucking = true; if(isJumping) velocityY -= 0.15; } }, () => isDucking = false);
+
+            window.addEventListener('keydown', (e) => {
+                if (!gameActive || isImpacting) return;
+                if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); handleJumpAction(); }
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') targetLane = -laneWidth;
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') targetLane = laneWidth;
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); if(!isDucking) Sound.duck(); isDucking = true; if(isJumping) velocityY -= 0.15; }
+            });
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') isDucking = false;
+                if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'KeyA' || e.code === 'KeyD') targetLane = 0;
+            });
+
+            document.getElementById('start-btn').onclick = (e) => { e.target.blur(); startGame(); };
+            document.getElementById('restart-btn').onclick = (e) => { e.target.blur(); startGame(); };
+            document.getElementById('high-score').innerText = highScore.toString().padStart(5, '0');
+            
+            clock = new THREE.Clock();
+            requestAnimationFrame(animate);
+        }
+
+        function handleJumpAction() { if (gameActive && !isJumping && !isImpacting) { Sound.jump(); isJumping = true; velocityY = jumpForce; } }
+
+        function togglePerspective() {
+            isSideView = !isSideView;
+            obstacles.forEach(o => {
+                if (isSideView) {
+                    const zProgress = -o.position.z + 4;
+                    o.position.set(zProgress, o.position.y, o.position.x);
+                    o.rotation.y = -Math.PI / 2;
+                } else {
+                    const xProgress = o.position.x;
+                    o.position.set(o.position.z, o.position.y, -xProgress + 4);
+                    o.rotation.y = 0;
+                }
+            });
+            applyView();
+        }
+
+        function applyView() {
+            document.body.className = isSideView ? 'side-view-ui' : 'front-view-ui';
+            if (isSideView) camera.position.set(15, 7, 22);
+            else camera.position.set(0, 5, 15);
+            camera.lookAt(0, 2.5, 0);
+        }
+
+        function createTREX() {
+            dino = new THREE.Group();
+            const box = (w, h, d, mat, x, y, z, rx=0) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+                m.position.set(x, y, z); m.rotation.x = rx; m.castShadow = true; dino.add(m); return m;
+            };
+            box(0.9, 1.1, 1, MATERIALS.trex, 0, 1.2, 0);
+            box(0.85, 0.9, 1.2, MATERIALS.trex, 0, 1.5, -0.4, -0.15);
+            box(0.5, 1, 0.5, MATERIALS.trex, 0, 2.3, 0.4, 0.5);
+            const head = new THREE.Group(); head.position.set(0, 2.8, 0.9);
+            const sk = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.75, 0.8), MATERIALS.trex); head.add(sk);
+            const sn = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.9), MATERIALS.trex); sn.position.set(0, 0.15, 0.65); head.add(sn);
+            const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.25, 0.8), MATERIALS.trexDark); jaw.position.set(0, -0.2, 0.6); head.add(jaw);
+            const createEye = (s) => {
+                const g = new THREE.Group();
+                const sclera = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.1), MATERIALS.eyeWhite);
+                const pupil = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.05), MATERIALS.eyePupil);
+                pupil.position.z = 0.05; g.add(sclera, pupil);
+                g.position.set(0.38 * s, 0.2, 0.3); g.rotation.y = s * 0.3; return g;
+            };
+            head.add(createEye(1), createEye(-1));
+            tongue = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.5), MATERIALS.tongue);
+            tongue.position.set(0, -0.05, 0.5); head.add(tongue);
+            dino.add(head);
+            tail = new THREE.Group(); tail.position.y = 1.3;
+            const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 1.2), MATERIALS.trex); t1.position.z = -1; tail.add(t1);
+            const t2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 1.5), MATERIALS.trexDark); t2.position.z = -2.1; t2.rotation.x = 0.1; tail.add(t2);
+            dino.add(tail);
+            const createLeg = (s) => {
+                const g = new THREE.Group(); g.position.set(0.4 * s, 0.8, 0);
+                const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1, 0.5), MATERIALS.trexDark); thigh.position.y = 0.5; g.add(thigh);
+                const cf = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, 0.3), MATERIALS.trexDark); cf.position.set(0, -0.3, 0.1); cf.rotation.x = 0.2; g.add(cf);
+                dino.add(g); return g;
+            };
+            legs = [createLeg(1), createLeg(-1)]; scene.add(dino);
+        }
+
+        function createObstacle(type) {
+            const g = new THREE.Group(); let hH = 1.0, isD = false;
+            const part = (w, h, d, c, x=0, y=0, z=0, rx=0, ry=0, rz=0) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 }));
+                m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; g.add(m); return m;
+            };
+            switch(type) {
+                case 0: part(1.2, 1, 2.2, 0x3d4422, 0, 0.6); for(let i=0; i<5; i++) part(0.1, 0.7, 0.5, 0x8b4513, (i%2?0.2:-0.2), 1.2, -0.8+i*0.45, 0.4); part(0.5, 0.4, 1.2, 0x3d4422, 0, 0.6, 1.5); hH=1.6; break;
+                case 1: part(1.5, 1.5, 3.2, 0x555555, 0, 0.8); part(0.6, 4.2, 0.6, 0x555555, 0, 3, 1.2, -0.2); part(0.6, 0.4, 0.8, 0x555555, 0, 5, 1.6); hH=4.5; break;
+                case 2: part(1.3, 1.1, 2.4, 0x4a3728, 0, 0.6); part(1.6, 1.4, 0.3, 0x4a3728, 0, 1.4, 1.2, 0.6); part(0.1, 0.8, 0.1, 0xeeeeee, 0.4, 1.3, 1.5, 0.5); part(0.1, 0.8, 0.1, 0xeeeeee, -0.4, 1.3, 1.5, 0.5); hH=1.8; break;
+                case 3: part(0.8, 0.3, 0.8, 0xaa2222, 0, 2.3); part(2.5, 0.1, 0.6, 0xaa2222, 0, 2.3, 0); hH=0.6; isD=true; break;
+                case 4: part(1.6, 0.8, 2.2, 0x222222, 0, 0.4); part(0.5, 0.5, 1.5, 0x222222, 0, 0.4, -1.5); part(0.8, 0.7, 0.8, 0x111111, 0, 0.4, -2.4); hH=1.0; break;
+                case 5: part(0.6, 0.9, 1.5, 0x1a3a1a, 0, 0.6); part(0.3, 1.2, 0.3, 0x1a3a1a, 0, 1.4, 0.6, 0.4); part(0.4, 0.3, 0.8, 0x1a3a1a, 0, 1.8, 1.0); hH=2.0; break;
+                case 6: part(1, 1.3, 2.5, 0x3d2b1f, 0, 0.7); part(0.1, 1.5, 1.8, 0xaa3333, 0, 1.8, 0); part(0.4, 0.4, 1.2, 0x3d2b1f, 0, 1.8, 1.2); hH=3.0; break;
+                case 10: part(1.2, 0.5, 1.5, 0x662222, 0, 2.1); part(5.0, 0.1, 1.0, 0x662222, 0, 2.1, 0); hH = 0.8; isD = true; break;
+                case 11: part(4, 0.8, 1, 0x444444, 0, 2.8); part(0.5, 3, 0.5, 0x444444, -1.8, 1.5); part(0.5, 3, 0.5, 0x444444, 1.8, 1.5); hH=3.5; isD=true; break;
+                case 12: const m = new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.3, 1.5), new THREE.MeshStandardMaterial({ color: 0x333333, transparent: true, opacity: 0.8 })); m.position.y = 2.6; g.add(m); hH=3.0; isD=true; break;
+                default: part(1, 1, 1.5, 0x556b2f, 0, 0.5); hH=1.2; break;
+            }
+            g.userData = { hH, isD }; return g;
+        }
+
+        function startGame() {
+            Sound.init(); Sound.startMusic(); 
+            gameActive = true; isImpacting = false; score = 0; gameSpeed = baseSpeed; targetLane = 0; currentLane = 0;
+            dino.position.set(0, 0, isSideView ? 0 : 4);
+            dino.rotation.set(0, isSideView ? Math.PI/2 : 0, 0);
+            dino.scale.set(1, 1, 1);
+            obstacles.forEach(o => scene.remove(o)); obstacles = [];
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('quit-game').classList.remove('hidden');
+        }
+
+        function triggerImpact(obs) {
+            if (isImpacting || !gameActive) return;
+            gameActive = false; 
+            isImpacting = true;
+            impactTimer = 3.0; 
+            currentImpactingObs = obs;
+            Sound.crash();
+
+            // Explosive Forces (Higher power than before)
+            const p = 1.2;
+            impactDinoVel.set(
+                (Math.random() - 0.5) * p, 
+                0.8 + Math.random() * 0.6, // Vertical Ejection
+                (Math.random() - 0.5) * p
+            );
+            // Spin chaos
+            impactDinoRotVel.set(Math.random() * 0.6, Math.random() * 0.6, Math.random() * 0.6);
+
+            impactObsVel.set(
+                -impactDinoVel.x * 1.5, 
+                0.5 + Math.random() * 0.4, 
+                -impactDinoVel.z * 1.5
+            );
+            impactObsRotVel.set(Math.random() * 0.8, Math.random() * 0.8, Math.random() * 0.8);
+        }
+
+        function quitGame() {
+            Sound.stopMusic(); gameActive = false; isImpacting = false;
+            obstacles.forEach(o => scene.remove(o)); obstacles = [];
+            document.getElementById('start-screen').classList.remove('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('quit-game').classList.add('hidden');
+        }
+
+        function showGameOverUI() {
+            if (score > highScore) { highScore = score; localStorage.setItem('dino_pwa_v7', highScore); document.getElementById('high-score').innerText = highScore.toString().padStart(5, '0'); }
+            document.getElementById('final-score').innerText = score.toString().padStart(5, '0');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            document.getElementById('quit-game').classList.add('hidden');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate); 
+            const delta = Math.min(clock.getDelta(), 0.1); // Cap delta to prevent huge skips
+            
+            if (isImpacting) {
+                impactTimer -= delta;
+                
+                // Camera Hard-Locks to track flying Dino
+                camera.lookAt(dino.position.x, dino.position.y + 2, dino.position.z);
+                
+                // Apply scaled Ragdoll Physics to Dino
+                const speedMult = 25; // Constant to match previous logic frame-rate feel
+                dino.position.x += impactDinoVel.x * delta * speedMult;
+                dino.position.y += impactDinoVel.y * delta * speedMult;
+                dino.position.z += impactDinoVel.z * delta * speedMult;
+                
+                dino.rotation.x += impactDinoRotVel.x * delta * speedMult;
+                dino.rotation.y += impactDinoRotVel.y * delta * speedMult;
+                dino.rotation.z += impactDinoRotVel.z * delta * speedMult;
+                
+                impactDinoVel.y -= 0.03 * delta * speedMult; // Stronger Gravity
+                
+                if (dino.position.y <= 0) {
+                    dino.position.y = 0;
+                    impactDinoVel.y *= -0.4; // Bounce
+                    impactDinoVel.x *= 0.9; 
+                    impactDinoVel.z *= 0.9;
+                }
+
+                // Apply scaled Ragdoll Physics to Obstacle
+                if (currentImpactingObs) {
+                    currentImpactingObs.position.x += impactObsVel.x * delta * speedMult;
+                    currentImpactingObs.position.y += impactObsVel.y * delta * speedMult;
+                    currentImpactingObs.position.z += impactObsVel.z * delta * speedMult;
+                    
+                    currentImpactingObs.rotation.x += impactObsRotVel.x * delta * speedMult;
+                    currentImpactingObs.rotation.y += impactObsRotVel.y * delta * speedMult;
+                    currentImpactingObs.rotation.z += impactObsRotVel.z * delta * speedMult;
+                    
+                    impactObsVel.y -= 0.03 * delta * speedMult;
+                    if (currentImpactingObs.position.y <= 0) {
+                        currentImpactingObs.position.y = 0;
+                        impactObsVel.y *= -0.3;
+                    }
+                }
+
+                if (impactTimer <= 0) {
+                    isImpacting = false;
+                    showGameOverUI();
+                }
+            } else {
+                currentLane = THREE.MathUtils.lerp(currentLane, targetLane, 0.18);
+                if (isSideView) { 
+                    dino.position.x = -10; dino.position.z = currentLane; 
+                    dino.rotation.set(0, Math.PI / 2, 0);
+                } else { 
+                    dino.position.x = currentLane; dino.position.z = 4; 
+                    dino.rotation.set(0, 0, 0);
+                }
+                camera.lookAt(0, 2.5, 0);
+            }
+
+            if (gameActive) {
+                const t = Date.now() * 0.015;
+                const targetS = isDucking ? 0.35 : 1.0; 
+                dino.scale.y = THREE.MathUtils.lerp(dino.scale.y, targetS, 0.2);
+                if (tongue) tongue.rotation.y = Math.sin(t * 1.5) * 0.4;
+                
+                if (isJumping) {
+                    dino.position.y += velocityY; velocityY += gravity; 
+                    if (dino.position.y <= 0) { dino.position.y = 0; isJumping = false; velocityY = 0; }
+                    legs.forEach(l => l.rotation.x = -0.4);
+                } else {
+                    const lr = Math.sin(t) * 0.7; legs[0].rotation.x = lr; legs[1].rotation.x = Math.sin(t+Math.PI)*0.7; tail.rotation.y = Math.sin(t*0.4)*0.2;
+                    if (lr > 0.6 && !stepT) { Sound.step(); stepT = true; } else if (lr < 0) { stepT = false; }
+                }
+
+                obstacleTimer -= delta;
+                if (obstacleTimer <= 0) {
+                    const o = createObstacle(Math.floor(Math.random()*13));
+                    const l = [-laneWidth, 0, laneWidth][Math.floor(Math.random()*3)];
+                    if (isSideView) { o.position.set(60, o.position.y, l); o.rotation.y = -Math.PI / 2; }
+                    else { o.position.set(l, o.position.y, -100); o.rotation.y = 0; }
+                    scene.add(o); obstacles.push(o);
+                    obstacleTimer = 1.0 / (gameSpeed * 0.8 + Math.random() * 0.4);
+                }
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const o = obstacles[i];
+                    if (isSideView) o.position.x -= gameSpeed; else o.position.z += gameSpeed;
+                    
+                    const dx = Math.abs(dino.position.x - o.position.x), dz = Math.abs(dino.position.z - o.position.z);
+                    const dTop = dino.position.y + (isDucking ? 1.0 : 2.8), oBot = o.position.y, oTop = o.position.y + o.userData.hH;
+                    
+                    if (dx < 1.2 && dz < 1.2) {
+                        let collision = false;
+                        if (o.userData.isD) { if (dTop > oBot && dino.position.y < oTop) collision = true; }
+                        else { if (!(dTop < oBot || dino.position.y > oTop)) collision = true; }
+                        
+                        if (collision) {
+                            triggerImpact(o);
+                            break; 
+                        }
+                    }
+                    const off = isSideView ? (o.position.x < -25) : (o.position.z > 25);
+                    if (off && o !== currentImpactingObs) { scene.remove(o); obstacles.splice(i, 1); }
+                }
+                score++; if (score % 1000 === 0) Sound.play(880, 'sine', 0.2, 0.1, 1320);
+                document.getElementById('score').innerText = score.toString().padStart(5, '0');
+                gameSpeed += 0.00004;
+            }
+            renderer.render(scene, camera);
+        }
+        let stepT = false;
+        window.onload = init;
+    </script>
+</body>
+</html>
